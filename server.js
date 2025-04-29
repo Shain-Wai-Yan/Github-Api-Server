@@ -2,7 +2,7 @@ const express = require("express");
 const fetch = require("node-fetch");
 const cors = require("cors");
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 // Enable CORS for all routes
 app.use(cors());
@@ -22,13 +22,13 @@ app.get("/api/github/*", async (req, res) => {
         "User-Agent": "GitHub-Profile-Viewer",
       },
     });
-
+    
     // Check if response is OK
     if (!response.ok) {
       const errorData = await response.json();
       return res.status(response.status).json(errorData);
     }
-
+    
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -78,8 +78,7 @@ app.get("/api/github/users/:username/contributions", async (req, res) => {
     }
 
     // Process the data to match the format expected by your frontend
-    const calendar =
-      data.data.user.contributionsCollection.contributionCalendar;
+    const calendar = data.data.user.contributionsCollection.contributionCalendar;
     const totalContributions = calendar.totalContributions;
 
     // Flatten the nested structure to a simple array of {date, count} objects
@@ -89,7 +88,7 @@ app.get("/api/github/users/:username/contributions", async (req, res) => {
         contributions.push({
           date: day.date,
           count: day.contributionCount,
-          color: day.color,
+          color: day.color
         });
       });
     });
@@ -109,47 +108,40 @@ app.get("/api/github/repos/:owner/:repo/readme/rendered", async (req, res) => {
   const { owner, repo } = req.params;
   try {
     // First, get the README content
-    const readmeResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/readme`,
-      {
-        headers: {
-          Authorization: `token ${process.env.GITHUB_TOKEN}`,
-          "User-Agent": "GitHub-Profile-Viewer",
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
-    );
-
+    const readmeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+      headers: {
+        Authorization: `token ${process.env.GITHUB_TOKEN}`,
+        "User-Agent": "GitHub-Profile-Viewer",
+        "Accept": "application/vnd.github.v3+json"
+      },
+    });
+    
     if (!readmeResponse.ok) {
-      return res
-        .status(readmeResponse.status)
-        .json({ error: "README not found" });
+      return res.status(readmeResponse.status).json({ error: "README not found" });
     }
-
+    
     const readmeData = await readmeResponse.json();
-    const content = Buffer.from(readmeData.content, "base64").toString("utf8");
-
+    const content = Buffer.from(readmeData.content, 'base64').toString('utf8');
+    
     // Then, get the rendered HTML using the markdown API
     const renderResponse = await fetch("https://api.github.com/markdown", {
       method: "POST",
       headers: {
         Authorization: `token ${process.env.GITHUB_TOKEN}`,
         "User-Agent": "GitHub-Profile-Viewer",
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         text: content,
         mode: "gfm",
-        context: `${owner}/${repo}`,
-      }),
+        context: `${owner}/${repo}`
+      })
     });
-
+    
     if (!renderResponse.ok) {
-      return res
-        .status(renderResponse.status)
-        .json({ error: "Failed to render markdown" });
+      return res.status(renderResponse.status).json({ error: "Failed to render markdown" });
     }
-
+    
     const html = await renderResponse.text();
     res.send(html);
   } catch (error) {
@@ -255,16 +247,16 @@ app.get("/api/github/users/:username/top-languages", async (req, res) => {
     const languages = {};
     let totalSize = 0;
 
-    data.data.user.repositories.nodes.forEach((repo) => {
+    data.data.user.repositories.nodes.forEach(repo => {
       if (repo.languages.edges) {
-        repo.languages.edges.forEach((edge) => {
+        repo.languages.edges.forEach(edge => {
           const { name, color } = edge.node;
           const size = edge.size;
-
+          
           if (!languages[name]) {
             languages[name] = { size: 0, color };
           }
-
+          
           languages[name].size += size;
           totalSize += size;
         });
@@ -272,11 +264,11 @@ app.get("/api/github/users/:username/top-languages", async (req, res) => {
     });
 
     // Convert to array and calculate percentages
-    const languageArray = Object.keys(languages).map((name) => ({
+    const languageArray = Object.keys(languages).map(name => ({
       name,
       color: languages[name].color,
       size: languages[name].size,
-      percentage: ((languages[name].size / totalSize) * 100).toFixed(1),
+      percentage: ((languages[name].size / totalSize) * 100).toFixed(1)
     }));
 
     // Sort by size (descending)
@@ -358,16 +350,11 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     error: "Server error",
-    message:
-      process.env.NODE_ENV === "development"
-        ? err.message
-        : "Something went wrong",
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
 
 // Start the server
-app.listen(PORT, () =>
-  console.log(`GitHub API proxy server running on port ${PORT}!`)
-);
+app.listen(PORT, () => console.log(`GitHub API proxy server running on port ${PORT}!`));
 
-module.exports = app;
+module.exports = app; // For testing purposes

@@ -17,8 +17,19 @@ app.get("/", (req, res) => {
 })
 
 // General GitHub API proxy endpoint
-app.get("/api/github/*", async (req, res) => {
+app.get("/api/github/*", async (req, res, next) => {
   const githubPath = req.params[0]
+
+  // Skip proxying for custom endpoints that should be handled separately
+  if (
+    githubPath.includes("/detailed-activity") ||
+    githubPath.includes("/top-languages") ||
+    githubPath.includes("/pinned") ||
+    githubPath.includes("/contributions")
+  ) {
+    return next()
+  }
+
   try {
     console.log(`Proxying request to: https://api.github.com/${githubPath}`)
 
@@ -121,55 +132,6 @@ app.get("/api/github/users/:username/contributions", async (req, res) => {
   } catch (error) {
     console.error("Error fetching contribution data:", error)
     res.status(500).json({ error: "Failed to fetch contribution data", message: error.message })
-  }
-})
-
-// Enhanced endpoint for README rendering with emoji support
-app.get("/api/github/repos/:owner/:repo/readme/rendered", async (req, res) => {
-  const { owner, repo } = req.params
-  try {
-    console.log(`Fetching README for ${owner}/${repo}`)
-
-    // First, get the README content
-    const readmeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
-      headers: {
-        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-        "User-Agent": "GitHub-Profile-Viewer",
-        Accept: "application/vnd.github.v3+json",
-      },
-    })
-
-    if (!readmeResponse.ok) {
-      return res.status(readmeResponse.status).json({ error: "README not found" })
-    }
-
-    const readmeData = await readmeResponse.json()
-    const content = Buffer.from(readmeData.content, "base64").toString("utf8")
-
-    // Then, get the rendered HTML using the markdown API
-    const renderResponse = await fetch("https://api.github.com/markdown", {
-      method: "POST",
-      headers: {
-        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-        "User-Agent": "GitHub-Profile-Viewer",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: content,
-        mode: "gfm",
-        context: `${owner}/${repo}`,
-      }),
-    })
-
-    if (!renderResponse.ok) {
-      return res.status(renderResponse.status).json({ error: "Failed to render markdown" })
-    }
-
-    const html = await renderResponse.text()
-    res.send(html)
-  } catch (error) {
-    console.error("Error rendering README:", error)
-    res.status(500).json({ error: "Failed to render README", message: error.message })
   }
 })
 
